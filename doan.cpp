@@ -140,7 +140,7 @@ std::unordered_map<std::string, DangNhap> readDangNhap(const std::string &filena
     return dangNhapMap;
 }
 
-inline bool sinhVienLaGiangVien(std::string maSv)
+inline bool sinhVienLaGiangVien(const std::string &maSv)
 {
     return maSv == "11377";
 }
@@ -153,17 +153,56 @@ inline std::string &trim(std::string &str)
     return str;
 }
 
-// Function to read a single line, ignoring leading newlines or spaces
-std::string readLineWithTrimming()
+// Function to read a single line, ignoring leading newlines or spaces, with a prompt for every retry
+std::string readLineWithTrimming(const std::string &prompt)
 {
     std::string input;
     do
     {
+        std::cout << prompt;
         std::numeric_limits<std::streamsize>::max();
         std::getline(std::cin, input);
         trim(input);
     } while (input.empty()); // Skip empty lines
     return input;
+}
+
+float readFloat(const std::string &prompt)
+{
+    float value = 0.0f;
+    while (true)
+    {
+        std::string input = readLineWithTrimming(prompt);
+        try
+        {
+            value = std::stof(input); // Convert string to float
+            break;                    // Valid float input, exit the loop
+        }
+        catch (const std::exception &)
+        {
+            std::cout << "Gia tri khong hop le. Vui long nhap lai (dang so thuc).\n";
+        }
+    }
+    return value;
+}
+
+int readInt(const std::string &prompt)
+{
+    int value = 0;
+    while (true)
+    {
+        std::string input = readLineWithTrimming(prompt);
+        try
+        {
+            value = std::stoi(input); // Convert string to int
+            break;                    // Valid integer input, exit the loop
+        }
+        catch (const std::exception &)
+        {
+            std::cout << "Gia tri khong hop le. Vui long nhap lai (dang so nguyen).\n";
+        }
+    }
+    return value;
 }
 
 class DataManager
@@ -204,8 +243,7 @@ public:
 
             // Ask user for credentials
             // Prompt and validate MaSV first
-            std::cout << "Enter MaSV: ";
-            maSvInput = readLineWithTrimming();
+            maSvInput = readLineWithTrimming("Enter MaSV: ");
 
             auto sinhVienIt = dangNhapMap.find(maSvInput); // Check if MaSV exists
             if (sinhVienIt == dangNhapMap.end())
@@ -215,8 +253,7 @@ public:
             }
 
             // If MaSV exists, ask for the password
-            std::cout << "Enter MatKhau: ";
-            matKhauInput = readLineWithTrimming();
+            matKhauInput = readLineWithTrimming("Enter MatKhau: ");
 
             if (sinhVienIt->second.matKhau == matKhauInput)
             {
@@ -239,16 +276,217 @@ public:
     void giaoDien()
     {
         std::cout << "Chao mung den voi do an Thuc hanh mon Ky thuat lap trinh: Quan ly Sinh vien\n";
-
-        // Attempt to login
-        if (!dangNhap())
+        do
         {
-            // Login failed after 5 attempts, exit the application
-            return;
+            std::cout << "Ban da dang xuat\n";
+            // Attempt to login
+            if (!dangNhap())
+            {
+                // Login failed after 5 attempts, exit the application
+                return;
+            }
+
+            // If login succeeds, continue with application flow
+            if (!laGiangVien())
+            {
+                dangNhapAsSv();
+                getSinhVien().hoTenSv += "1";
+                continue;
+            }
+            dangNhapAsGv();
+        } while (!askToExit());
+
+        // printAllMaps();
+    }
+
+    void dangNhapAsSv()
+    {
+        std::cout << "Dang nhap voi tu cach Sinh vien\n"
+                  << "Thong tin SV:\n"
+                  << getSinhVien() << "\n"
+                  << "Chi tiet diem so SV:\n"
+                  << getDiemSo() << "\n"
+                  << "Sinh vien se dang xuat.\n";
+        return;
+    }
+
+    void dangNhapAsGv()
+    {
+        std::cout << "Dang nhap voi tu cach Giang vien\n";
+        while (true)
+        {
+            int choice = displayMenu();
+
+            // Handle menu choices
+            switch (choice)
+            {
+            case 0:
+                std::cout << "Giang vien se dang xuat.\n";
+                return; // Return control to giaoDien
+            case 1:
+                themSinhVien();
+                break;
+            case 2:
+                // capNhatThongTinSinhVien();
+                break;
+            case 3:
+                // xoaSinhVien();
+                break;
+            case 4:
+                // timKiemSinhVienTheoMaSV();
+                break;
+            case 5:
+                // hienThiDanhSachSinhVienKhongCanhBao();
+                break;
+            case 6:
+                // xuatDanhSachSinhVienRaFile();
+                break;
+            default:
+                std::cout << "Lua chon khong hop le. Vui long thu lai.\n";
+            }
+        }
+    }
+
+    int displayMenu()
+    {
+        std::string choiceStr;
+        int choice = -1; // Initialize with an invalid value
+
+        while (true)
+        {
+            std::cout << "--------------------- MENU ---------------------\n"
+                      << "1. Them sinh vien.\n"
+                      << "2. Cap nhat thong tin sinh vien.\n"
+                      << "3. Xoa sinh vien.\n"
+                      << "4. Tim kiem va hien thi thong tin sinh vien theo MaSV.\n"
+                      << "5. Hien thi danh sach sinh vien khong bi canh bao hoc tap (TrungbinhHK >= 4).\n"
+                      << "6. Xuat danh sach sinh vien ra file \"thongtinSV_export.txt\".\n"
+                      << "------------------------------------------------\n"
+                      << "0. Dang xuat.\n";
+
+            choiceStr = readLineWithTrimming("Nhap lua chon cua ban (0-6): ");
+            try
+            {
+                choice = std::stoi(choiceStr); // Convert the input to an integer
+                if (choice >= 0 && choice <= 6)
+                {
+                    break; // Valid choice, exit the loop
+                }
+                else
+                {
+                    std::cout << "Lua chon khong hop le. Vui long nhap lai (0-6).\n";
+                }
+            }
+            catch (const std::exception &)
+            {
+                std::cout << "Lua chon khong hop le. Vui long nhap lai (0-6).\n";
+            }
         }
 
-        // If login succeeds, continue with application flow
-        printAllMaps();
+        return choice;
+    }
+
+    void themSinhVien()
+    {
+        std::cout << "Nhap thong tin sinh vien moi:\n";
+
+        // Gather SinhVien information
+        std::string maSv = readLineWithTrimming("Nhap MaSV: ");
+
+        // Check if MaSV already exists to avoid duplicates
+        if (sinhVienMap.find(maSv) != sinhVienMap.end())
+        {
+            std::cout << "MaSV da ton tai. Vui long thu lai.\n";
+            return; // Early exit if duplicate is detected
+        }
+
+        std::string hoTenSv = readLineWithTrimming("Nhap Ho Ten Sinh Vien: ");
+        std::string gioiTinh = readLineWithTrimming("Nhap Gioi Tinh: ");
+        int namSinh = readInt("Nhap Nam Sinh: ");
+
+        // Gather DiemSo information
+        float ktlt = readFloat("Nhap diem Ky Thuat Lap Trinh (KTLT): ");
+        float mmt = readFloat("Nhap diem Mang May Tinh (MMT): ");
+        float ctdl = readFloat("Nhap diem Cau Truc Du Lieu (CTDL): ");
+
+        // Gather DangNhap information
+        std::string matKhau = readLineWithTrimming("Nhap Mat Khau: ");
+
+        // Create objects and calculate TrungBinhHK
+        SinhVien sinhVien(maSv, gioiTinh, namSinh, hoTenSv);
+        DiemSo diemSo(maSv, ktlt, mmt, ctdl);
+        sinhVien.tinhTrungBinhHK(diemSo); // Calculate trungBinhHK using diemSo
+
+        DangNhap dangNhap(maSv, matKhau);
+
+        std::cout << sinhVien << "\n"
+                  << diemSo << "\n";
+
+        // Add objects to their respective maps
+        sinhVienMap.emplace(maSv, std::move(sinhVien));
+        diemSoMap.emplace(maSv, std::move(diemSo));
+        dangNhapMap.emplace(maSv, std::move(dangNhap));
+
+        std::cout << "Them sinh vien moi thanh cong!\n";
+    }
+
+    bool askToExit()
+    {
+        std::string input = readLineWithTrimming("Do you want to exit? (Y/N): ");
+        // Check if the input is "Y" or "y"
+        return !input.empty() && std::toupper(input[0]) == 'Y';
+        // User confirmed exit or
+        // User does not want to exit
+    }
+
+    SinhVien &getSinhVien()
+    {
+        return getSinhVien(sinhVienDaDangNhap);
+    }
+
+    SinhVien &getSinhVien(const std::string &maSv)
+    {
+        auto it = sinhVienMap.find(maSv);
+        if (it != sinhVienMap.end())
+        {
+            return it->second;
+        }
+        throw std::runtime_error("MaSV khong ton tai.");
+    }
+
+    DiemSo &getDiemSo()
+    {
+        return getDiemSo(sinhVienDaDangNhap);
+    }
+
+    DiemSo &getDiemSo(const std::string &maSv)
+    {
+        auto it = diemSoMap.find(maSv);
+        if (it != diemSoMap.end())
+        {
+            return it->second;
+        }
+        throw std::runtime_error("MaSV khong ton tai.");
+    }
+
+    DangNhap &getDangNhap()
+    {
+        return getDangNhap(sinhVienDaDangNhap);
+    }
+
+    DangNhap &getDangNhap(const std::string &maSv)
+    {
+        auto it = dangNhapMap.find(maSv);
+        if (it != dangNhapMap.end())
+        {
+            return it->second;
+        }
+        throw std::runtime_error("MaSV khong ton tai.");
+    }
+
+    inline bool laGiangVien() const
+    {
+        return sinhVienLaGiangVien(sinhVienDaDangNhap);
     }
 
     // Function to print all SinhVien
@@ -298,6 +536,7 @@ int main()
 
     // Instantiate DataManager and print all maps
     DataManager dataManager(sinhVienFile, diemSoFile, dangNhapFile);
+    dataManager.printAllMaps();
     // hien thi
     dataManager.giaoDien();
 
