@@ -39,7 +39,7 @@ void tinhTrungBinhHK(SinhVien *sv, DiemSo *diem)
 // Ham nay doc chuoi dau vao va sao chep vao bo dem dich
 // Khong co gioi han kich thuoc bo dem (output), nen co the gay tran bo dem
 // Su dung can than va ko input nhieu hon output buffer size khi test
-void readLineWithTrimming(const char *prompt, char *output, bool allowEmpty)
+void readLineWithTrimming(const char *prompt, char *output, int size, bool allowEmpty)
 {
     char input[1024];
     do
@@ -56,7 +56,13 @@ void readLineWithTrimming(const char *prompt, char *output, bool allowEmpty)
         while (end > start && *end == ' ')
             end--;
         *(end + 1) = '\0';
-        strcpy(output, start);
+        if (strlen(start) >= size)
+        {
+            printf("Input is too long. Please enter up to %d characters.\n", size - 1);
+            continue;
+        }
+        strncpy(output, start, size - 1);
+        output[size - 1] = '\0'; // Ensure null-termination
     } while (strlen(output) == 0 && !allowEmpty);
 }
 
@@ -65,7 +71,7 @@ bool readFloat(const char *prompt, float *output, bool allowEmpty)
     char input[1024];
     while (true)
     {
-        readLineWithTrimming(prompt, input, allowEmpty);
+        readLineWithTrimming(prompt, input, sizeof(input), allowEmpty);
         if (strlen(input) == 0 && allowEmpty)
         {
             return false;
@@ -86,7 +92,7 @@ bool readInt(const char *prompt, int *output, bool allowEmpty)
     char input[1024];
     while (true)
     {
-        readLineWithTrimming(prompt, input, allowEmpty);
+        readLineWithTrimming(prompt, input, sizeof(input), allowEmpty);
         if (strlen(input) == 0 && allowEmpty)
         {
             return false;
@@ -258,7 +264,7 @@ bool dangNhap(char *sinhVienDaDangNhap)
         char maSvInput[50], matKhauInput[50];
 
         // Ask user for credentials
-        readLineWithTrimming("Enter MaSV: ", maSvInput, false);
+        readLineWithTrimming("Enter MaSV: ", maSvInput, sizeof(maSvInput), false);
 
         DangNhap *dangNhapEntry = getDangNhap(maSvInput);
         if (!dangNhapEntry)
@@ -267,7 +273,7 @@ bool dangNhap(char *sinhVienDaDangNhap)
             continue;
         }
 
-        readLineWithTrimming("Enter MatKhau: ", matKhauInput, false);
+        readLineWithTrimming("Enter MatKhau: ", matKhauInput, sizeof(matKhauInput), false);
 
         if (strcmp(dangNhapEntry->matKhau, matKhauInput) == 0)
         {
@@ -336,9 +342,8 @@ void themSinhVien()
     float ktlt, mmt, ctdl;
 
     printf("Nhap thong tin sinh vien moi:\n");
-
     // Input MaSV
-    readLineWithTrimming("Nhap MaSV: ", maSv, false);
+    readLineWithTrimming("Nhap MaSV: ", maSv, sizeof(maSv), false);
 
     // Check if MaSV already exists
     if (getSinhVien(maSv) != NULL)
@@ -348,13 +353,13 @@ void themSinhVien()
     }
 
     // Input other details
-    readLineWithTrimming("Nhap Ho Ten Sinh Vien: ", hoTenSv, false);
-    readLineWithTrimming("Nhap Gioi Tinh: ", gioiTinh, false);
+    readLineWithTrimming("Nhap Ho Ten Sinh Vien: ", hoTenSv, sizeof(hoTenSv), false);
+    readLineWithTrimming("Nhap Gioi Tinh: ", gioiTinh, sizeof(gioiTinh), false);
     readInt("Nhap Nam Sinh: ", &namSinh, false);
     readFloat("Nhap diem Ky Thuat Lap Trinh (KTLT): ", &ktlt, false);
     readFloat("Nhap diem Mang May Tinh (MMT): ", &mmt, false);
     readFloat("Nhap diem Cau Truc Du Lieu (CTDL): ", &ctdl, false);
-    readLineWithTrimming("Nhap Mat Khau: ", matKhau, false);
+    readLineWithTrimming("Nhap Mat Khau: ", matKhau, sizeof(matKhau), false);
 
     // Create new SinhVien, DiemSo, and DangNhap
     SinhVien sv;
@@ -390,7 +395,7 @@ void capNhatThongTinSinhVien()
 {
     char maSv[50];
     printf("Nhap MaSV cua sinh vien can cap nhat: ");
-    readLineWithTrimming("", maSv, false);
+    readLineWithTrimming("", maSv, sizeof(maSv), false);
 
     SinhVien *sv = getSinhVien(maSv);
     if (sv == NULL)
@@ -404,7 +409,7 @@ void capNhatThongTinSinhVien()
     // Update HoTen
     char hoTenSv[100];
     printf("Nhap Ho Ten Sinh Vien (%s): ", sv->hoTenSv);
-    readLineWithTrimming("", hoTenSv, true);
+    readLineWithTrimming("", hoTenSv, sizeof(hoTenSv), true);
     if (strlen(hoTenSv) > 0)
     {
         strcpy(sv->hoTenSv, hoTenSv);
@@ -413,7 +418,7 @@ void capNhatThongTinSinhVien()
     // Update GioiTinh
     char gioiTinh[10];
     printf("Nhap Gioi Tinh (%s): ", sv->gioiTinh);
-    readLineWithTrimming("", gioiTinh, true);
+    readLineWithTrimming("", gioiTinh, sizeof(gioiTinh), true);
     if (strlen(gioiTinh) > 0)
     {
         strcpy(sv->gioiTinh, gioiTinh);
@@ -469,7 +474,7 @@ void capNhatThongTinSinhVien()
     // Prompt for password input
     char enteredPassword[50];
     printf("Nhap mat khau cua sinh vien: ");
-    readLineWithTrimming("", enteredPassword, true);
+    readLineWithTrimming("", enteredPassword, sizeof(enteredPassword), true);
 
     // Check the password
     if (strlen(enteredPassword) == 0)
@@ -481,7 +486,7 @@ void capNhatThongTinSinhVien()
     // Confirm the password
     char confirmPassword[50];
     printf("Nhap lai mat khau de xac nhan: ");
-    readLineWithTrimming("", confirmPassword, false);
+    readLineWithTrimming("", confirmPassword, sizeof(confirmPassword), false);
 
     if (strcmp(enteredPassword, confirmPassword) == 0)
     {
@@ -501,7 +506,7 @@ void xoaSinhVien()
 {
     char maSv[50];
     printf("Nhap MaSV cua sinh vien can xoa: ");
-    readLineWithTrimming("", maSv, false);
+    readLineWithTrimming("", maSv, sizeof(maSv), false);
 
     int index = -1;
     for (int i = 0; i < sinhVienCount; i++)
@@ -524,7 +529,7 @@ void xoaSinhVien()
     printSvAsGv(maSv);
 
     char confirmation[10];
-    readLineWithTrimming("Ban co chac chan muon xoa sinh vien nay? (Y/N): ", confirmation, false);
+    readLineWithTrimming("Ban co chac chan muon xoa sinh vien nay? (Y/N): ", confirmation, sizeof(confirmation), false);
     if (strlen(confirmation) == 0 || toupper(confirmation[0]) != 'Y')
     {
         printf("Xoa sinh vien da bi huy bo.\n");
@@ -545,7 +550,7 @@ void timKiemSinhVienTheoMaSV()
 {
     char maSv[50];
     printf("Nhap MaSV can tim: ");
-    readLineWithTrimming("", maSv, false);
+    readLineWithTrimming("", maSv, sizeof(maSv), false);
 
     SinhVien *sv = getSinhVien(maSv);
     if (sv == NULL)
