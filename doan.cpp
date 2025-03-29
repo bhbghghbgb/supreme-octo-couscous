@@ -335,16 +335,16 @@ public:
                 themSinhVien();
                 break;
             case 2:
-                // capNhatThongTinSinhVien();
+                capNhatThongTinSinhVien();
                 break;
             case 3:
-                // xoaSinhVien();
+                xoaSinhVien();
                 break;
             case 4:
-                // timKiemSinhVienTheoMaSV();
+                timKiemSinhVienTheoMaSV();
                 break;
             case 5:
-                // hienThiDanhSachSinhVienKhongCanhBao();
+                hienThiDanhSachSinhVienKhongCanhBao();
                 break;
             case 6:
                 // xuatDanhSachSinhVienRaFile();
@@ -399,7 +399,7 @@ public:
         std::cout << "Nhap thong tin sinh vien moi:\n";
 
         // Gather SinhVien information
-        std::string maSv = readLineWithTrimming("Nhap MaSV: ");
+        std::string maSv = readLineWithTrimming("Nhap MaSV: ", true);
 
         // Check if MaSV already exists to avoid duplicates
         if (getSinhVien(maSv))
@@ -444,7 +444,7 @@ public:
         std::cout << "Cap nhat thong tin sinh vien:\n";
 
         // Prompt user for MaSV to identify the student
-        std::string maSv = readLineWithTrimming("Nhap MaSV cua sinh vien can cap nhat: ");
+        std::string maSv = readLineWithTrimming("Nhap MaSV cua sinh vien can cap nhat: ", true);
         auto sv = getSinhVien(maSv);
 
         if (!sv) // Check if MaSV exists
@@ -529,9 +529,78 @@ public:
         printSvAsGv(maSv);
     }
 
+    void xoaSinhVien()
+    {
+        std::cout << "Xoa sinh vien:\n";
+
+        // Prompt user for MaSV to identify the student
+        std::string maSv = readLineWithTrimming("Nhap MaSV cua sinh vien can xoa: ", true);
+
+        // Check if the student exists in sinhVienMap
+        if (!getSinhVien(maSv))
+        {
+            std::cout << "MaSV khong ton tai. Khong co gi de xoa.\n";
+            return; // Exit if the student is not found
+        }
+
+        // Show information for confirmation
+        std::cout << "Thong tin sinh vien:\n";
+        printSvAsGv(maSv); // Show SinhVien, DiemSo, DangNhap details
+
+        // Confirm deletion
+        std::string confirmation = readLineWithTrimming("Ban co chac chan muon xoa sinh vien nay? (Y/N): ", true);
+        if (confirmation.empty() || std::toupper(confirmation[0]) != 'Y')
+        {
+            std::cout << "Xoa sinh vien da bi huy bo.\n";
+            return; // Exit if the user cancels the deletion
+        }
+
+        // Remove the student from all maps
+        sinhVienMap.erase(maSv); // Remove from SinhVien map
+        diemSoMap.erase(maSv);   // Remove from DiemSo map
+        dangNhapMap.erase(maSv); // Remove from DangNhap map
+
+        // Provide feedback
+        std::cout << "Sinh vien voi MaSV " << maSv << " da duoc xoa thanh cong.\n";
+    }
+
+    void timKiemSinhVienTheoMaSV()
+    {
+        std::cout << "Tim kiem sinh vien theo MaSV:\n";
+
+        // Prompt user for MaSV
+        std::string maSv = readLineWithTrimming("Nhap MaSV cua sinh vien can tim: ");
+
+        // Check if MaSV exists using getSinhVien
+        if (!getSinhVien(maSv))
+        {
+            std::cout << "MaSV khong ton tai.\n";
+            return; // Exit if the student is not found
+        }
+
+        // Display information using printSvAsGv
+        std::cout << "Thong tin sinh vien:\n";
+        printSvAsGv(maSv); // Show SinhVien, DiemSo, DangNhap details
+    }
+
+    void hienThiDanhSachSinhVienKhongCanhBao()
+    {
+        std::cout << "Danh sach sinh vien khong bi canh bao hoc tap (TrungBinhHK >= 4):\n";
+
+        // Iterate through the sinhVienMap and check TrungBinhHK
+        for (const auto &entry : sinhVienMap)
+        {
+            const SinhVien &sinhVien = entry.second;
+            if (sinhVien.trungBinhHk >= 4)
+            {
+                std::cout << sinhVien << "\n"; // Use overloaded << operator
+            }
+        }
+    }
+
     bool askToExit()
     {
-        std::string input = readLineWithTrimming("Do you want to exit? (Y/N): ");
+        std::string input = readLineWithTrimming("Do you want to exit? (Y/N): ", true);
         // Check if the input is "Y" or "y"
         return !input.empty() && std::toupper(input[0]) == 'Y';
         // User confirmed exit or
