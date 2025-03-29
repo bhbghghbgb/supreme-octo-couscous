@@ -1,4 +1,11 @@
-# KTLT thuc hanh (C++)
+# KTLT thuc hanh (C++ 20)
+
+-   C++20 Features:
+    -   `<concepts>`: This header introduces concepts, which are a powerful feature for expressing template constraints. It was introduced in C++20.
+-   C++17 Features:
+    -   `<optional>`: This header introduces std::optional, which provides a way to represent a value that may or may not be present. It was introduced in C++17.
+    -   `<filesystem>`: This header introduces the std::filesystem namespace, providing a portable way to interact with the file system.
+-   **C++11 Required** because code syntax (**Lambda Expressions**).
 
 ## Quản Lý Thông Tin Sinh Viên
 
@@ -94,3 +101,8 @@ Hãy viết Hàm:
 -   Nếu người dùng nhập sai, thông báo **Sai** và yêu cầu người dùng nhập lại.
 -   Nếu nhập sai quá 5 lần thì thoát chương trình.
 ```
+
+## Tinh nang ngoai yeu cau
+
+6. Xuat danh sach sinh vien ra 3 file `*_export.txt`
+7. Thong ke hoc luc

@@ -7,6 +7,8 @@
 #include <limits>
 #include <ios>
 #include <optional>
+#include <filesystem>
+#include <concepts>
 
 class DiemSo
 {
@@ -16,7 +18,7 @@ public:
     float mmt;  // Mang May Tinh
     float ctdl; // Cau Truc Du Lieu
 
-    DiemSo() : maSv(""), ktlt(0.0f), mmt(0.0f), ctdl(0.0f) {}
+    DiemSo() : maSv(""), ktlt(0.f), mmt(0.f), ctdl(0.f) {}
 
     DiemSo(std::string ma, float k, float m, float c) : maSv(ma), ktlt(k), mmt(m), ctdl(c) {}
 
@@ -36,6 +38,13 @@ public:
            << ", MMT: " << ds.mmt << ", CTDL: " << ds.ctdl;
         return os;
     }
+
+    // Overload operator<< for file-compatible output
+    friend std::ofstream &operator<<(std::ofstream &os, const DiemSo &ds)
+    {
+        os << ds.maSv << " " << ds.ktlt << " " << ds.mmt << " " << ds.ctdl;
+        return os;
+    }
 };
 
 class SinhVien
@@ -47,10 +56,10 @@ public:
     std::string hoTenSv;
     float trungBinhHk;
 
-    SinhVien() : maSv(""), gioiTinh(""), namSinh(0), hoTenSv(""), trungBinhHk(0.0f) {}
+    SinhVien() : maSv(""), gioiTinh(""), namSinh(0), hoTenSv(""), trungBinhHk(0.f) {}
 
     SinhVien(std::string ma, std::string gioi, int nam, std::string hoTen)
-        : maSv(ma), gioiTinh(gioi), namSinh(nam), hoTenSv(hoTen), trungBinhHk(0.0f) {}
+        : maSv(ma), gioiTinh(gioi), namSinh(nam), hoTenSv(hoTen), trungBinhHk(0.f) {}
 
     void tinhTrungBinhHK(const DiemSo &diem)
     {
@@ -80,6 +89,13 @@ public:
            << ", TrungBinhHK: " << sv.trungBinhHk;
         return os;
     }
+
+    // Overload operator<< for file-compatible output
+    friend std::ofstream &operator<<(std::ofstream &os, const SinhVien &sv)
+    {
+        os << sv.maSv << " " << sv.gioiTinh << " " << sv.namSinh << " " << sv.hoTenSv;
+        return os;
+    }
 };
 
 class DangNhap
@@ -106,12 +122,25 @@ public:
         os << "MaSV: " << dn.maSv << ", MatKhau: " << dn.matKhau;
         return os;
     }
+
+    // Overload operator<< for file-compatible output
+    friend std::ofstream &operator<<(std::ofstream &os, const DangNhap &dn)
+    {
+        os << dn.maSv << " " << dn.matKhau;
+        return os;
+    }
 };
 
-std::unordered_map<std::string, SinhVien> readSinhVien(const std::string &filename)
+std::unordered_map<std::string, SinhVien> readSinhVien(const std::filesystem::path &filePath)
 {
     std::unordered_map<std::string, SinhVien> sinhVienMap;
-    std::ifstream file(filename);
+    std::ifstream file(filePath);
+
+    if (!file)
+    {
+        throw std::runtime_error("Cannot open SinhVien file: " + filePath.string());
+    }
+
     std::string line;
     while (std::getline(file, line))
     {
@@ -121,10 +150,16 @@ std::unordered_map<std::string, SinhVien> readSinhVien(const std::string &filena
     return sinhVienMap;
 }
 
-std::unordered_map<std::string, DiemSo> readDiemSo(const std::string &filename)
+std::unordered_map<std::string, DiemSo> readDiemSo(const std::filesystem::path &filePath)
 {
     std::unordered_map<std::string, DiemSo> diemSoMap;
-    std::ifstream file(filename);
+    std::ifstream file(filePath);
+
+    if (!file)
+    {
+        throw std::runtime_error("Cannot open DiemSo file: " + filePath.string());
+    }
+
     std::string line;
     while (std::getline(file, line))
     {
@@ -134,10 +169,16 @@ std::unordered_map<std::string, DiemSo> readDiemSo(const std::string &filename)
     return diemSoMap;
 }
 
-std::unordered_map<std::string, DangNhap> readDangNhap(const std::string &filename)
+std::unordered_map<std::string, DangNhap> readDangNhap(const std::filesystem::path &filePath)
 {
     std::unordered_map<std::string, DangNhap> dangNhapMap;
-    std::ifstream file(filename);
+    std::ifstream file(filePath);
+
+    if (!file)
+    {
+        throw std::runtime_error("Cannot open DangNhap file: " + filePath.string());
+    }
+
     std::string line;
     while (std::getline(file, line))
     {
@@ -213,12 +254,41 @@ std::optional<int> readInt(const std::string &prompt, bool allowEmpty = false)
     }
 }
 
+// Concept (C++20) to check if a type supports the << operator for std::ofstream
+template <typename T>
+concept SupportsOstream = requires(std::ofstream &os, const T &value) {
+    { os << value } -> std::same_as<std::ofstream &>;
+};
+
+template <typename V>
+    requires SupportsOstream<V> // Ensure V supports the << operator
+void writeMapToFile(const std::filesystem::path &filePath, const std::unordered_map<std::string, V> &map)
+{
+    std::ofstream outFile(filePath);
+
+    if (!outFile)
+    {
+        throw std::runtime_error("Error: Cannot open file " + filePath.string() + " for writing.");
+    }
+
+    for (const auto &entry : map)
+    {
+        outFile << entry.second << "\n"; // Calls the << operator of the value type (V)
+    }
+
+    outFile.close();
+    std::cout << "Data has been successfully written to " << filePath << ".\n";
+}
+
 class DataManager
 {
 private:
     std::unordered_map<std::string, SinhVien> sinhVienMap;
     std::unordered_map<std::string, DiemSo> diemSoMap;
     std::unordered_map<std::string, DangNhap> dangNhapMap;
+    std::filesystem::path sinhVienFile;
+    std::filesystem::path diemSoFile;
+    std::filesystem::path dangNhapFile;
 
     std::string sinhVienDaDangNhap; // Stores the ID of the logged-in student
 
@@ -226,9 +296,12 @@ public:
     // Constructor that reads the files and populates the maps
     DataManager(const std::string &sinhVienFile, const std::string &diemSoFile, const std::string &dangNhapFile)
     {
-        sinhVienMap = readSinhVien(sinhVienFile);
-        diemSoMap = readDiemSo(diemSoFile);
-        dangNhapMap = readDangNhap(dangNhapFile);
+        this->sinhVienFile = std::filesystem::path(sinhVienFile);
+        this->diemSoFile = std::filesystem::path(diemSoFile);
+        this->dangNhapFile = std::filesystem::path(dangNhapFile);
+        sinhVienMap = readSinhVien(this->sinhVienFile);
+        diemSoMap = readDiemSo(this->diemSoFile);
+        dangNhapMap = readDangNhap(this->dangNhapFile);
 
         // Populate TrungBinhHK for SinhVien
         for (const auto &[maSv, diem] : diemSoMap)
@@ -347,7 +420,10 @@ public:
                 hienThiDanhSachSinhVienKhongCanhBao();
                 break;
             case 6:
-                // xuatDanhSachSinhVienRaFile();
+                xuatDanhSachSinhVienRaFile();
+                break;
+            case 7:
+                thongKeHocLuc();
                 break;
             default:
                 std::cout << "Lua chon khong hop le. Vui long thu lai.\n";
@@ -368,15 +444,16 @@ public:
                       << "3. Xoa sinh vien.\n"
                       << "4. Tim kiem va hien thi thong tin sinh vien theo MaSV.\n"
                       << "5. Hien thi danh sach sinh vien khong bi canh bao hoc tap (TrungbinhHK >= 4).\n"
-                      << "6. Xuat danh sach sinh vien ra file \"thongtinSV_export.txt\".\n"
+                      << "6. Xuat danh sach sinh vien ra file \"*_export.txt\".\n"
+                      << "7. Thong ke hoc luc.\n"
                       << "------------------------------------------------\n"
                       << "0. Dang xuat.\n";
 
-            choiceStr = readLineWithTrimming("Nhap lua chon cua ban (0-6): ");
+            choiceStr = readLineWithTrimming("Nhap lua chon cua ban (0-7): ");
             try
             {
                 choice = std::stoi(choiceStr); // Convert the input to an integer
-                if (choice >= 0 && choice <= 6)
+                if (choice >= 0 && choice <= 7)
                 {
                     break; // Valid choice, exit the loop
                 }
@@ -595,6 +672,85 @@ public:
             {
                 std::cout << sinhVien << "\n"; // Use overloaded << operator
             }
+        }
+    }
+
+    void xuatDanhSachSinhVienRaFile() const
+    {
+        // Generate export filenames by modifying the stem of each path
+        auto generateExportPath = [](const std::filesystem::path &filePath)
+        {
+            std::filesystem::path exportPath = filePath;
+            exportPath.replace_filename(exportPath.stem().string() + "_export" + exportPath.extension().string());
+            return exportPath;
+        };
+
+        std::filesystem::path sinhVienExportPath = generateExportPath(sinhVienFile);
+        std::filesystem::path diemSoExportPath = generateExportPath(diemSoFile);
+        std::filesystem::path dangNhapExportPath = generateExportPath(dangNhapFile);
+
+        // Write to export file
+        writeMapToFile(sinhVienExportPath, sinhVienMap);
+        writeMapToFile(diemSoExportPath, diemSoMap);
+        writeMapToFile(dangNhapExportPath, dangNhapMap);
+    }
+
+    void thongKeHocLuc() const
+    {
+        std::cout << "Thong ke hoc luc:\n";
+
+        // Define ranks and their ranges locally
+        struct RankRange
+        {
+            std::string rank;
+            float minScore; // Minimum score (inclusive)
+            float maxScore; // Maximum score (exclusive)
+        };
+
+        std::vector<RankRange> rankRanges = {
+            {"Xuat sac", 9.f, std::numeric_limits<float>::infinity()},
+            {"Gioi", 8.f, 9.f},
+            {"Kha", 7.f, 8.f},
+            {"Trung binh", 5.f, 7.f},
+            {"Yeu", 4.f, 5.f},
+            {"Kem", -std::numeric_limits<float>::infinity(), 4.f}};
+
+        // Group students by ranks
+        std::unordered_map<std::string, int> rankGroups;
+
+        // Initialize rank counts
+        for (const auto &rankRange : rankRanges)
+        {
+            rankGroups[rankRange.rank] = 0;
+        }
+
+        // Iterate through students and count their ranks
+        for (const auto &entry : sinhVienMap)
+        {
+            const SinhVien &sinhVien = entry.second;
+            for (const auto &rankRange : rankRanges)
+            {
+                if (sinhVien.trungBinhHk >= rankRange.minScore && sinhVien.trungBinhHk < rankRange.maxScore)
+                {
+                    rankGroups[rankRange.rank]++;
+                    break; // Once grouped, exit the loop
+                }
+            }
+        }
+
+        // Calculate total number of students
+        int totalStudents = sinhVienMap.size();
+        std::cout << "Tong so sinh vien: " << totalStudents << "\n";
+
+        // Print statistics in one line per rank
+        for (const auto &rankRange : rankRanges)
+        {
+            const std::string &rank = rankRange.rank;
+            int count = rankGroups[rank];
+            float percentage = (totalStudents > 0) ? (count * 100.f / totalStudents) : 0.f;
+
+            // Print statistics for the current rank
+            std::cout << rank << ": " << count << " sinh vien (" << percentage << "%)\n";
         }
     }
 
