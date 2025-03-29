@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <limits>
 #include <ios>
+#include <optional>
 
 class DiemSo
 {
@@ -14,6 +15,8 @@ public:
     float ktlt; // Ky Thuat Lap Trinh
     float mmt;  // Mang May Tinh
     float ctdl; // Cau Truc Du Lieu
+
+    DiemSo() : maSv(""), ktlt(0.0f), mmt(0.0f), ctdl(0.0f) {}
 
     DiemSo(std::string ma, float k, float m, float c) : maSv(ma), ktlt(k), mmt(m), ctdl(c) {}
 
@@ -44,12 +47,14 @@ public:
     std::string hoTenSv;
     float trungBinhHk;
 
+    SinhVien() : maSv(""), gioiTinh(""), namSinh(0), hoTenSv(""), trungBinhHk(0.0f) {}
+
     SinhVien(std::string ma, std::string gioi, int nam, std::string hoTen)
         : maSv(ma), gioiTinh(gioi), namSinh(nam), hoTenSv(hoTen), trungBinhHk(0.0f) {}
 
     void tinhTrungBinhHK(const DiemSo &diem)
     {
-        trungBinhHk = (diem.ktlt * 4 + diem.mmt * 3 + diem.ctdl * 3) / 10.0f;
+        trungBinhHk = (diem.ktlt * 4 + diem.mmt * 3 + diem.ctdl * 3) / 10;
     }
 
     static SinhVien fromString(const std::string &line)
@@ -82,6 +87,8 @@ class DangNhap
 public:
     std::string maSv;
     std::string matKhau;
+
+    DangNhap() : maSv(""), matKhau("") {}
 
     DangNhap(std::string ma, std::string mk) : maSv(ma), matKhau(mk) {}
 
@@ -153,56 +160,57 @@ inline std::string &trim(std::string &str)
     return str;
 }
 
-// Function to read a single line, ignoring leading newlines or spaces, with a prompt for every retry
-std::string readLineWithTrimming(const std::string &prompt)
+// Function to read a single line, ignoring leading newlines or spaces, with optional retries
+std::string readLineWithTrimming(const std::string &prompt, bool allowEmpty = false)
 {
     std::string input;
     do
     {
         std::cout << prompt;
-        std::numeric_limits<std::streamsize>::max();
         std::getline(std::cin, input);
         trim(input);
-    } while (input.empty()); // Skip empty lines
+    } while (input.empty() && !allowEmpty); // Retry only if input is empty and retry is enabled
     return input;
 }
 
-float readFloat(const std::string &prompt)
+std::optional<float> readFloat(const std::string &prompt, bool allowEmpty = false)
 {
-    float value = 0.0f;
     while (true)
     {
-        std::string input = readLineWithTrimming(prompt);
+        std::string input = readLineWithTrimming(prompt, allowEmpty);
+        if (input.empty() && allowEmpty)
+        {
+            return std::nullopt; // Return empty optional if input is blank and allowEmpty is true
+        }
         try
         {
-            value = std::stof(input); // Convert string to float
-            break;                    // Valid float input, exit the loop
+            return std::stof(input); // Convert and return valid float
         }
         catch (const std::exception &)
         {
             std::cout << "Gia tri khong hop le. Vui long nhap lai (dang so thuc).\n";
         }
     }
-    return value;
 }
 
-int readInt(const std::string &prompt)
+std::optional<int> readInt(const std::string &prompt, bool allowEmpty = false)
 {
-    int value = 0;
     while (true)
     {
-        std::string input = readLineWithTrimming(prompt);
+        std::string input = readLineWithTrimming(prompt, allowEmpty);
+        if (input.empty() && allowEmpty)
+        {
+            return std::nullopt; // Return empty optional if input is blank and allowEmpty is true
+        }
         try
         {
-            value = std::stoi(input); // Convert string to int
-            break;                    // Valid integer input, exit the loop
+            return std::stoi(input); // Convert and return valid integer
         }
         catch (const std::exception &)
         {
             std::cout << "Gia tri khong hop le. Vui long nhap lai (dang so nguyen).\n";
         }
     }
-    return value;
 }
 
 class DataManager
@@ -245,8 +253,8 @@ public:
             // Prompt and validate MaSV first
             maSvInput = readLineWithTrimming("Enter MaSV: ");
 
-            auto sinhVienIt = dangNhapMap.find(maSvInput); // Check if MaSV exists
-            if (sinhVienIt == dangNhapMap.end())
+            auto sinhVienIt = getDangNhap(maSvInput);
+            if (!sinhVienIt) // Check if MaSV exists
             {
                 std::cout << "MaSV khong ton tai. Vui long thu lai.\n";
                 continue; // Skip directly to the next attempt without asking for the password
@@ -255,7 +263,7 @@ public:
             // If MaSV exists, ask for the password
             matKhauInput = readLineWithTrimming("Enter MatKhau: ");
 
-            if (sinhVienIt->second.matKhau == matKhauInput)
+            if (sinhVienIt->get().matKhau == matKhauInput)
             {
                 // Successful login
                 sinhVienDaDangNhap = maSvInput; // Save the logged-in student ID
@@ -394,7 +402,7 @@ public:
         std::string maSv = readLineWithTrimming("Nhap MaSV: ");
 
         // Check if MaSV already exists to avoid duplicates
-        if (sinhVienMap.find(maSv) != sinhVienMap.end())
+        if (getSinhVien(maSv))
         {
             std::cout << "MaSV da ton tai. Vui long thu lai.\n";
             return; // Early exit if duplicate is detected
@@ -402,12 +410,12 @@ public:
 
         std::string hoTenSv = readLineWithTrimming("Nhap Ho Ten Sinh Vien: ");
         std::string gioiTinh = readLineWithTrimming("Nhap Gioi Tinh: ");
-        int namSinh = readInt("Nhap Nam Sinh: ");
+        int namSinh = readInt("Nhap Nam Sinh: ").value();
 
         // Gather DiemSo information
-        float ktlt = readFloat("Nhap diem Ky Thuat Lap Trinh (KTLT): ");
-        float mmt = readFloat("Nhap diem Mang May Tinh (MMT): ");
-        float ctdl = readFloat("Nhap diem Cau Truc Du Lieu (CTDL): ");
+        float ktlt = readFloat("Nhap diem Ky Thuat Lap Trinh (KTLT): ").value();
+        float mmt = readFloat("Nhap diem Mang May Tinh (MMT): ").value();
+        float ctdl = readFloat("Nhap diem Cau Truc Du Lieu (CTDL): ").value();
 
         // Gather DangNhap information
         std::string matKhau = readLineWithTrimming("Nhap Mat Khau: ");
@@ -428,6 +436,97 @@ public:
         dangNhapMap.emplace(maSv, std::move(dangNhap));
 
         std::cout << "Them sinh vien moi thanh cong!\n";
+        printSvAsGv(maSv);
+    }
+
+    void capNhatThongTinSinhVien()
+    {
+        std::cout << "Cap nhat thong tin sinh vien:\n";
+
+        // Prompt user for MaSV to identify the student
+        std::string maSv = readLineWithTrimming("Nhap MaSV cua sinh vien can cap nhat: ");
+        auto sv = getSinhVien(maSv);
+
+        if (!sv) // Check if MaSV exists
+        {
+            std::cout << "MaSV khong ton tai.\n";
+            return; // Exit if the student is not found
+        }
+
+        // Access the SinhVien object
+        SinhVien &sinhVien = sv->get();
+
+        // Update each field, showing the current value and allowing optional input
+        std::optional<std::string> newHoTen = readLineWithTrimming("Nhap Ho Ten Sinh Vien (" + sinhVien.hoTenSv + "): ", true);
+        if (newHoTen)
+            sinhVien.hoTenSv = *newHoTen; // Update only if a new value is provided
+
+        std::optional<std::string> newGioiTinh = readLineWithTrimming("Nhap Gioi Tinh (" + sinhVien.gioiTinh + "): ", true);
+        if (newGioiTinh)
+            sinhVien.gioiTinh = *newGioiTinh; // Update only if a new value is provided
+
+        std::optional<int> newNamSinh = readInt("Nhap Nam Sinh (" + std::to_string(sinhVien.namSinh) + "): ", true);
+        if (newNamSinh)
+            sinhVien.namSinh = *newNamSinh; // Update only if a new value is provided
+
+        // Check if DiemSo exists and handle updates
+        auto optionalDiemSo = getDiemSo(maSv);
+        DiemSo &diemSo = optionalDiemSo
+                             ? optionalDiemSo->get()
+                             : diemSoMap[maSv]; // Create and add a new DiemSo if not found
+
+        // Ensure MaSV is set for the new DiemSo (in case of creation)
+        diemSo.maSv = maSv;
+
+        // Prompt for updates
+        std::optional<float> newKtlt = readFloat("Nhap diem KTLT (" + std::to_string(diemSo.ktlt) + "): ", true);
+        if (newKtlt)
+            diemSo.ktlt = *newKtlt; // Update only if a new value is provided
+
+        std::optional<float> newMmt = readFloat("Nhap diem MMT (" + std::to_string(diemSo.mmt) + "): ", true);
+        if (newMmt)
+            diemSo.mmt = *newMmt; // Update only if a new value is provided
+
+        std::optional<float> newCtdl = readFloat("Nhap diem CTDL (" + std::to_string(diemSo.ctdl) + "): ", true);
+        if (newCtdl)
+            diemSo.ctdl = *newCtdl; // Update only if a new value is provided
+
+        // Recalculate TrungBinhHK for SinhVien
+        sinhVien.tinhTrungBinhHK(diemSo);
+
+        auto optionalDangNhap = getDangNhap(maSv);
+
+        DangNhap &dangNhap = optionalDangNhap
+                                 ? optionalDangNhap->get()
+                                 : dangNhapMap[maSv]; // Create and add a new DangNhap if not found
+
+        // Ensure MaSV is set for the new DangNhap (in case of creation)
+        dangNhap.maSv = maSv;
+
+        // Prompt for password input
+        std::string enteredPassword = readLineWithTrimming("Nhap mat khau cua sinh vien: ", true);
+
+        // Check the password
+        if (enteredPassword.empty())
+        {
+            std::cout << "Ban chua nhap mat khau. Khong thay doi.\n";
+            return; // Exit without changing the password
+        }
+
+        // Update the password if provided
+        std::string confirmPassword = readLineWithTrimming("Nhap lai mat khau de xac nhan: ", false);
+        if (enteredPassword == confirmPassword)
+        {
+            dangNhap.matKhau = enteredPassword;
+            std::cout << "Mat khau da duoc cap nhat thanh cong.\n";
+        }
+        else
+        {
+            std::cout << "Mat khau khong khop. Vui long thu lai.\n";
+        }
+
+        std::cout << "Cap nhat thong tin sinh vien thanh cong!\n";
+        printSvAsGv(maSv);
     }
 
     bool askToExit()
@@ -441,52 +540,59 @@ public:
 
     SinhVien &getSinhVien()
     {
-        return getSinhVien(sinhVienDaDangNhap);
+        return getSinhVien(sinhVienDaDangNhap).value(); // throw if empty;
     }
 
-    SinhVien &getSinhVien(const std::string &maSv)
+    std::optional<std::reference_wrapper<SinhVien>> getSinhVien(const std::string &maSv)
     {
         auto it = sinhVienMap.find(maSv);
         if (it != sinhVienMap.end())
         {
-            return it->second;
+            return it->second; // Wrap the reference in std::optional
         }
-        throw std::runtime_error("MaSV khong ton tai.");
+        return std::nullopt; // Return empty optional to signify "not found"
     }
 
     DiemSo &getDiemSo()
     {
-        return getDiemSo(sinhVienDaDangNhap);
+        return getDiemSo(sinhVienDaDangNhap).value(); // throw if empty
     }
 
-    DiemSo &getDiemSo(const std::string &maSv)
+    std::optional<std::reference_wrapper<DiemSo>> getDiemSo(const std::string &maSv)
     {
         auto it = diemSoMap.find(maSv);
         if (it != diemSoMap.end())
         {
-            return it->second;
+            return it->second; // Wrap the reference in std::optional
         }
-        throw std::runtime_error("MaSV khong ton tai.");
+        return std::nullopt; // Return empty optional to signify "not found"
     }
 
     DangNhap &getDangNhap()
     {
-        return getDangNhap(sinhVienDaDangNhap);
+        return getDangNhap(sinhVienDaDangNhap).value(); // throw if empty;
     }
 
-    DangNhap &getDangNhap(const std::string &maSv)
+    std::optional<std::reference_wrapper<DangNhap>> getDangNhap(const std::string &maSv)
     {
         auto it = dangNhapMap.find(maSv);
         if (it != dangNhapMap.end())
         {
-            return it->second;
+            return it->second; // Wrap the reference in std::optional
         }
-        throw std::runtime_error("MaSV khong ton tai.");
+        return std::nullopt; // Return empty optional to signify "not found"
     }
 
     inline bool laGiangVien() const
     {
         return sinhVienLaGiangVien(sinhVienDaDangNhap);
+    }
+
+    void printSvAsGv(const std::string &maSv) const
+    {
+        std::cout << sinhVienMap.find(maSv)->second << "\n"
+                  << diemSoMap.find(maSv)->second << "\n"
+                  << dangNhapMap.find(maSv)->second << "\n";
     }
 
     // Function to print all SinhVien
