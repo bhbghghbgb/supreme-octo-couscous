@@ -8,6 +8,9 @@
                 "-fdiagnostics-color=always",
                 "-std=c++20",
                 "-g",
+                "-Wall",
+                "-Wextra",
+                "-Wpedantic",
                 "${file}",
                 "-o",
                 "${fileDirname}\\build\\${fileBasenameNoExtension}.exe"

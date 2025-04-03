@@ -7,6 +7,10 @@
     -   `<filesystem>`: This header introduces the std::filesystem namespace, providing a portable way to interact with the file system.
 -   **C++11 Required** because code syntax (**Lambda Expressions**).
 
+## Note: C++ code is outdated
+
+-   Vi thay ko cham code C++ nen ko fix nua.
+
 ## Quản Lý Thông Tin Sinh Viên
 
 ### Cấu Trúc SINHVIEN
