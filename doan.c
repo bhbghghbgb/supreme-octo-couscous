@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -620,40 +621,74 @@ void xuatRa1File() {
   printf("Xuat danh sach sinh vien tong hop ra file thanh cong!\n");
 }
 
+typedef struct {
+  float minScore;
+  const char *name;
+  int count;
+} HocLuc;
+
 void thongKeHocLuc() {
-  int gioi = 0, kha = 0, trungBinh = 0, yeu = 0, xuatSac = 0, kem = 0;
+  HocLuc hocLucCategories[] = {
+      {9.0, "Xuat sac", 0},   {8.0, "Gioi", 0}, {7.0, "Kha", 0},
+      {5.0, "Trung binh", 0}, {4.0, "Yeu", 0},  {-INFINITY, "Kem", 0},
+  };
+
+  int categoryCount = sizeof(hocLucCategories) / sizeof(hocLucCategories[0]);
 
   for (int i = 0; i < sinhVienCount; i++) {
     float tb = sinhVienArray[i].trungBinhHk;
-    if (tb >= 9.0)
-      xuatSac++;
-    else if (tb >= 8.0)
-      gioi++;
-    else if (tb >= 7.0)
-      kha++;
-    else if (tb >= 5.0)
-      trungBinh++;
-    else if (tb >= 4.0)
-      yeu++;
-    else
-      kem++;
+    for (int j = 0; j < categoryCount; j++) {
+      if (tb >= hocLucCategories[j].minScore) {
+        hocLucCategories[j].count++;
+        break;
+      }
+    }
   }
 
-  int totalStudents = sinhVienCount;
   printf("Thong ke hoc luc:\n");
-  printf("Tong so sinh vien: %d\n", totalStudents);
-  printf("Xuat sac: %d sinh vien (%.2f%%)\n", xuatSac,
-         totalStudents > 0 ? (xuatSac * 100.0 / totalStudents) : 0.0);
-  printf("Gioi: %d sinh vien (%.2f%%)\n", gioi,
-         totalStudents > 0 ? (gioi * 100.0 / totalStudents) : 0.0);
-  printf("Kha: %d sinh vien (%.2f%%)\n", kha,
-         totalStudents > 0 ? (kha * 100.0 / totalStudents) : 0.0);
-  printf("Trung binh: %d sinh vien (%.2f%%)\n", trungBinh,
-         totalStudents > 0 ? (trungBinh * 100.0 / totalStudents) : 0.0);
-  printf("Yeu: %d sinh vien (%.2f%%)\n", yeu,
-         totalStudents > 0 ? (yeu * 100.0 / totalStudents) : 0.0);
-  printf("Kem: %d sinh vien (%.2f%%)\n", kem,
-         totalStudents > 0 ? (kem * 100.0 / totalStudents) : 0.0);
+  printf("Tong so sinh vien: %d\n", sinhVienCount);
+  for (int i = 0; i < categoryCount; i++) {
+    printf("%s: %d sinh vien (%.2f%%)\n", hocLucCategories[i].name,
+           hocLucCategories[i].count,
+           sinhVienCount > 0
+               ? (hocLucCategories[i].count * 100.0 / sinhVienCount)
+               : 0.0);
+  }
+}
+
+typedef struct {
+  char gioiTinh[MAX_GIOI_TINH_LENGTH];
+  int count;
+} GioiTinhCount;
+
+void thongKeGioiTinh() {
+  GioiTinhCount gioiTinhCounts[MAX_STUDENTS];
+  int gioiTinhTypeCount = 0;
+
+  for (int i = 0; i < sinhVienCount; i++) {
+    bool found = false;
+    for (int j = 0; j < gioiTinhTypeCount; j++) {
+      if (strcmp(sinhVienArray[i].gioiTinh, gioiTinhCounts[j].gioiTinh) == 0) {
+        gioiTinhCounts[j].count++;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      strcpy(gioiTinhCounts[gioiTinhTypeCount].gioiTinh,
+             sinhVienArray[i].gioiTinh);
+      gioiTinhCounts[gioiTinhTypeCount].count = 1;
+      gioiTinhTypeCount++;
+    }
+  }
+
+  printf("Thong ke gioi tinh:\n");
+  for (int i = 0; i < gioiTinhTypeCount; i++) {
+    printf("%s: %d sinh vien (%.2f%%)\n", gioiTinhCounts[i].gioiTinh,
+           gioiTinhCounts[i].count,
+           sinhVienCount > 0 ? (gioiTinhCounts[i].count * 100.0 / sinhVienCount)
+                             : 0.0);
+  }
 }
 
 void dangNhapAsGv() {
@@ -667,14 +702,15 @@ void dangNhapAsGv() {
         "5. Hien thi danh sach sinh vien khong bi canh bao hoc tap "
         "(TrungbinhHK >= %.1f).\n",
         MIN_TRUNG_BINH_HK_WARNING);
-    printf("6. Xuat danh sach sinh vien tong hop ra file %s\n",
+    printf("6. Xuat danh sach sinh vien tong hop ra file %s.\n",
            FILE_OUT_SINHVIEN_ALL);
     printf("7. Thong ke hoc luc.\n");
+    printf("8. Thong ke gioi tinh.\n");
     printf("------------------------------------------------\n");
     printf("0. Dang xuat.\n");
 
     int choice;
-    if (!readInt("Nhap lua chon cua ban (0-7): ", &choice, false)) {
+    if (!readInt("Nhap lua chon cua ban (0-8): ", &choice, false)) {
       continue;
     }
 
@@ -702,6 +738,9 @@ void dangNhapAsGv() {
         break;
       case 7:
         thongKeHocLuc();
+        break;
+      case 8:
+        thongKeGioiTinh();
         break;
       default:
         printf("Lua chon khong hop le. Vui long thu lai.\n");
